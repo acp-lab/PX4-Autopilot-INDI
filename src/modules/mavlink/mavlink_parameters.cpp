@@ -409,6 +409,7 @@ bool
 MavlinkParametersManager::send_one()
 {
 	const hrt_abstime now = hrt_absolute_time();
+
 	if (now < _last_param_sent_timestamp + _mavlink.param_wait_s() * 1e6f) {
 		// Throttle parameter sending
 		return false;
