@@ -6,25 +6,24 @@
 #
 
 #
-# Start Control Allocator
-#
-control_allocator start
-
-#
 # Start Multicopter Rate Controller.
 #
 if param greater -s MC_INDI_EN 0
 then
 	mc_indi_rate_control start
 else
+	#
+	# Start Control Allocator
+	#
+	control_allocator start
+
 	mc_rate_control start
+
+	#
+	# Start Multicopter Attitude Controller. Non-tilt prioritized Atitude controller.
+	#
+	mc_att_control start
 fi
-
-
-#
-# Start Multicopter Attitude Controller.
-#
-mc_att_control start
 
 if param greater -s MC_AT_EN 0
 then
