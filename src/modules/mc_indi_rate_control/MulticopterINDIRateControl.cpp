@@ -391,16 +391,29 @@ matrix::Vector3f MulticopterINDIRateControl::computeDesiredAngularAcceleration(
 	//Computing error quaternion (This is basicallty the best way)
 	matrix::Quatf q_error = q_current.inversed() * q_desired;
 
-	//Extract the attitude component of error
-	float sign_qw = (q_error(0) >= 0.0f) ? 1.0f : -1.0f;
-	matrix::Vector3f q_e_red(
-		2.0f * sign_qw * q_error(1),
-        	2.0f * sign_qw * q_error(2),
-        	2.0f * sign_qw * q_error(3)
-    );
-    	// take yaw out
-    	float q_e_yaw_w = q_e_red(2);
-    	float sign_yaw = (q_e_yaw_w >= 0.0f) ? 1.0f : -1.0f;
+	//Pull components
+	const float qe_w = q_error(0);
+    	const float qe_x = q_error(1);
+    	const float qe_y = q_error(2);
+    	const float qe_z = q_error(3);
+
+	// denominator
+	// TODO: Look into small angle approx and 0 or near 0 cases of denom
+	const float denom = sqrtf(qe_w * qe_w + qe_z * qe_z);
+
+	matrix::Vector3f q_e_red_tilt{0.f, 0.f, 0.f};
+    	matrix::Vector3f q_e_yaw_tilt{0.f, 0.f, 0.f};
+
+	//Reduced attitude and yaw error extractions
+	q_e_red_tilde(0) = (qe_w * qe_x - qe_y * qe_z) / denom;
+    	q_e_red_tilde(1) = (qe_w * qe_y + qe_x * qe_z) / denom;
+    	q_e_red_tilde(2) = 0.0f;
+
+    	q_e_yaw_tilde(0) = 0.0f;
+    	q_e_yaw_tilde(1) = 0.0f;
+    	q_e_yaw_tilde(2) = qe_z / denom;
+
+	const float sign_qw = (qe_w >= 0.0f) ? 1.0f : -1.0f;
 
     	// get angular vel error
     	matrix::Vector3f omega_error = angular_vel_desired - angular_vel_body;
@@ -415,8 +428,8 @@ matrix::Vector3f MulticopterINDIRateControl::computeDesiredAngularAcceleration(
 	// Final equation
 
     	matrix::Vector3f alpha_desired =
-        	_param_k_q_red.get() * q_e_red +
-        	_param_k_e_yaw.get() * sign_yaw * matrix::Vector3f(0.0f, 0.0f, q_e_yaw_w) +
+        	_param_k_q_red.get() * q_e_red_tilde +
+        	_param_k_e_yaw.get() * sign_qw * q_e_yaw_tilde +
         	K_omega.emult(omega_error) +
         	angular_accel_body;
 
