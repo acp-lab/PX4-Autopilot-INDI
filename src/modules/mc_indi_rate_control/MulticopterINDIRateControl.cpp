@@ -428,7 +428,7 @@ matrix::Vector3f MulticopterINDIRateControl::computeDesiredAngularAcceleration(
     	matrix::Vector3f alpha_desired =
         	_param_k_q_red.get() * q_e_red_tilde +
         	_param_k_e_yaw.get() * sign_qw * q_e_yaw_tilde +
-        	K_omega.emult(omega_error)''
+        	K_omega.emult(omega_error);
 
     	return alpha_desired;
 }
