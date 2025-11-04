@@ -386,7 +386,6 @@ matrix::Vector3f MulticopterINDIRateControl::computeDesiredAngularAcceleration(
 	const matrix::Quatf &q_desired,
 	const matrix::Vector3f &angular_vel_body,
 	const matrix::Vector3f &angular_vel_desired,
-	const matrix::Vector3f &angular_accel_body
 ) {
 	//Computing error quaternion (This is basicallty the best way)
 	matrix::Quatf q_error = q_current.inversed() * q_desired;
@@ -426,12 +425,10 @@ matrix::Vector3f MulticopterINDIRateControl::computeDesiredAngularAcceleration(
     	);
 
 	// Final equation
-
     	matrix::Vector3f alpha_desired =
         	_param_k_q_red.get() * q_e_red_tilde +
         	_param_k_e_yaw.get() * sign_qw * q_e_yaw_tilde +
-        	K_omega.emult(omega_error) +
-        	angular_accel_body;
+        	K_omega.emult(omega_error)''
 
     	return alpha_desired;
 }
