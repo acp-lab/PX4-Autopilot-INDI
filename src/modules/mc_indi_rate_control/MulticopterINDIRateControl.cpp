@@ -327,6 +327,7 @@ MulticopterINDIRateControl::Run()
 
 
 			// scale setpoints by battery status if enabled
+			// Dumb fix for new individual rotor speeds
 			if (_param_mc_bat_scale_en.get()) {
 				if (_battery_status_sub.updated()) {
 					battery_status_s battery_status;
@@ -397,7 +398,6 @@ matrix::Vector3f MulticopterINDIRateControl::computeDesiredAngularAcceleration(
     	const float qe_z = q_error(3);
 
 	// denominator
-	// TODO: Look into small angle approx and 0 or near 0 cases of denom
 	const float denom = sqrtf(qe_w * qe_w + qe_z * qe_z);
 
 	matrix::Vector3f q_e_red_tilt{0.f, 0.f, 0.f};
@@ -432,6 +432,42 @@ matrix::Vector3f MulticopterINDIRateControl::computeDesiredAngularAcceleration(
 
     	return alpha_desired;
 }
+
+matrix::Vector<float, ActuatorEffectiveness::NUM_ACTUATORS>
+MulticopterINDIRateControl::computeIndiRotorCommands(
+	const matrix::Vector<float, ActuatorEffectiveness::NUM_ACTUATORS> &omega_f,
+	const matrix::Vector3f &v,
+	const matrix::Vector3f &Omega_dot_f,
+	const matrix::Matrix<float, 3, ActuatorEffectiveness::NUM_ACTUATORS> &G1,
+	const matrix::Matrix<float, 3, ActuatorEffectiveness::NUM_ACTUATORS> &G2,
+	const matrix::Vector<float, ActuatorEffectiveness::NUM_ACTUATORS> &prev_omega_error
+) {
+	// Combine effectiveness matrices
+	matrix::Matrix<float, 3, ActuatorEffectiveness::NUM_ACTUATORS> G = G1 + G2;
+
+	/// Get inverse then pseudo inverse also check if this is right order for p-inv?
+	matrix::SquareMatrix3f GGT = G * G.transpose();
+	matrix::SquareMatrix3f GGT_inv = matrix::inv(GGT);
+	matrix::Matrix<float, ActuatorEffectiveness::NUM_ACTUATORS, 3> G_pinv = G.transpose() * GGT_inv;
+
+	// Compute z^-1 term
+	matrix::Vector3f z_inv = G2 * prev_omega_error;
+
+	// Right hand side of eq 21
+	matrix::Vector3f rhs = v - Omega_dot_f + z_inv;
+
+	// Delta omega
+	matrix::Vector<float, ActuatorEffectiveness::NUM_ACTUATORS> delta_omega = G_pinv * rhs;
+
+	// Final control rotor output
+	matrix::Vector<float, ActuatorEffectiveness::NUM_ACTUATORS> omega_c = omega_f + delta_omega;
+
+	_prev_omega_error = omega_c - omega_f;
+
+	return omega_c;
+
+}
+
 
 void MulticopterINDIRateControl::updateActuatorControlsStatus(const vehicle_torque_setpoint_s &vehicle_torque_setpoint,
 		float dt)
